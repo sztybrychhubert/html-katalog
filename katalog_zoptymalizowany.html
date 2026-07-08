@@ -181,7 +181,7 @@
 
   @media print{
     html,body{background:#fff;padding:0;gap:0;}
-    .page{box-shadow:none;width:210mm;height:297mm;aspect-ratio:auto;border-radius:0;page-break-after:always;}
+    .page{box-shadow:none;width:210mm !important;height:297mm !important;aspect-ratio:auto;border-radius:0;page-break-after:always;position:static !important;transform:none !important;display:flex !important;}
   }
 
   
@@ -275,7 +275,7 @@
   }
 
   /* Tryb komputerowy (Desktop) - 2 strony obok siebie */
-  @media (min-width: 900px) {
+  @media screen and (min-width: 900px) {
     .fb-view-port {
       width: 100%;
       height: 100%;
@@ -285,34 +285,30 @@
     .page {
       position: absolute !important;
       top: 0 !important;
-      bottom: 0 !important;
-      width: 50% !important;
-      height: 100% !important;
+      left: 0 !important;
+      width: 860px !important;
+      height: 1216px !important;
+      aspect-ratio: auto !important;
+      transform-origin: 0 0;
       margin: 0 !important;
       display: none !important;
       box-shadow: 0 12px 36px rgba(0,0,0,0.5) !important;
-    }
-    .page.is-cover {
-      left: 25% !important;
-      display: none !important;
     }
     .page.visible {
       display: flex !important;
     }
     .page.left-side {
-      left: 0 !important;
       border-right: 1px solid rgba(0,0,0,0.15) !important;
       border-radius: 4px 0 0 4px !important;
     }
     .page.right-side {
-      left: 50% !important;
       border-left: 1px solid rgba(0,0,0,0.15) !important;
       border-radius: 0 4px 4px 0 !important;
     }
   }
 
   /* Tryb mobilny (Telefon) - 1 strona dopasowana idealnie */
-  @media (max-width: 899px) {
+  @media screen and (max-width: 899px) {
     .fb-stage {
       padding: 10px; /* mniejszy margines na telefonie */
     }
@@ -325,24 +321,16 @@
       position: absolute !important;
       top: 0 !important;
       left: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
+      width: 860px !important;
+      height: 1216px !important;
+      aspect-ratio: auto !important;
+      transform-origin: 0 0;
       margin: 0 !important;
       display: none !important;
       box-shadow: 0 6px 20px rgba(0,0,0,0.4) !important;
     }
     .page.visible {
       display: flex !important;
-    }
-    
-    /* Gwarancja, że wewnętrzne elementy skalują się poprawnie i nie rozwijają poza .page */
-    .page * {
-      max-width: 100%;
-    }
-    
-    /* Jeśli paski przewijania pojawiłyby się w tabeli, pozwólmy im na to zamiast psuć układ */
-    table, .pbody, .tech-table {
-      max-width: 100% !important;
     }
   }
 </style>
@@ -1058,26 +1046,37 @@ document.addEventListener("DOMContentLoaded", function() {
   let currentSpread = 0; // index of spread/view
   let spreads = [];
 
-  // Dopasowuje .fb-view-port do dostępnej przestrzeni z zachowaniem proporcji
-  // strony A4 (pojedynczej na telefonie, podwójnej na komputerze), tak aby
-  // treść nigdy się nie rozjeżdżała ani nie nachodziła na siebie.
+  // Każda strona jest renderowana w stałym rozmiarze projektowym o proporcji
+  // kartki A4 (860 × 1216 px) i pomniejszana transformacją scale() do
+  // dostępnego miejsca. Dzięki temu układ strony jest liczony zawsze w tym
+  // samym rozmiarze — na każdym urządzeniu wygląda identycznie, jak
+  // pomniejszona kartka A4, i nic nie może się rozjechać ani nałożyć.
+  const PAGE_W = 860;
+  const PAGE_H = 1216; // 860 × 1.414 — proporcja A4
+  let scale = 1;
+
   function sizeViewport() {
     const isDesktop = window.innerWidth >= 900;
-    const ratio = isDesktop ? 1.4142 : 1 / 1.4142; // width / height
+    const ratio = (isDesktop ? 2 * PAGE_W : PAGE_W) / PAGE_H; // szer./wys.
 
     const availW = stage.clientWidth;
     const availH = stage.clientHeight;
 
     let w = availW;
+    if (isDesktop) w = Math.min(w, 1600);
     let h = w / ratio;
     if (h > availH) {
       h = availH;
       w = h * ratio;
     }
-    if (isDesktop) w = Math.min(w, 1600);
 
+    scale = h / PAGE_H;
     viewport.style.width = w + 'px';
     viewport.style.height = h + 'px';
+  }
+
+  function placePage(p, offsetX) {
+    p.style.transform = 'translate(' + offsetX + 'px, 0) scale(' + scale + ')';
   }
 
   function buildSpreads() {
@@ -1116,28 +1115,32 @@ document.addEventListener("DOMContentLoaded", function() {
     
     if (isDesktop) {
       if (currentSpread === 0) {
-        // Cover
+        // Cover — wyśrodkowana pojedyncza strona
         const p = pages[currentPages[0]];
         if (p) {
           p.classList.add('visible', 'is-cover');
+          placePage(p, (PAGE_W * scale) / 2);
         }
       } else {
         // Pairs
         if (currentPages.length === 2) {
           const left = pages[currentPages[0]];
           const right = pages[currentPages[1]];
-          if (left) left.classList.add('visible', 'left-side');
-          if (right) right.classList.add('visible', 'right-side');
+          if (left) { left.classList.add('visible', 'left-side'); placePage(left, 0); }
+          if (right) { right.classList.add('visible', 'right-side'); placePage(right, PAGE_W * scale); }
         } else {
-          // Odd page at the end
+          // Odd page at the end — wyśrodkowana
           const left = pages[currentPages[0]];
-          if (left) left.classList.add('visible', 'is-cover');
+          if (left) {
+            left.classList.add('visible', 'is-cover');
+            placePage(left, (PAGE_W * scale) / 2);
+          }
         }
       }
     } else {
       // Mobile single page
       const p = pages[currentPages[0]];
-      if (p) p.classList.add('visible');
+      if (p) { p.classList.add('visible'); placePage(p, 0); }
     }
 
     // Update buttons
@@ -1155,7 +1158,10 @@ document.addEventListener("DOMContentLoaded", function() {
         indicator.textContent = p2 ? `Strony ${p1} - ${p2}` : `Strona ${p1}`;
       }
     } else {
-      indicator.textContent = `Strona ${pageLabel(currentPages[0])} z ${lastPrintedNumber}`;
+      const label = pageLabel(currentPages[0]);
+      indicator.textContent = pageNumbers[currentPages[0]] !== null
+        ? `Strona ${label} z ${lastPrintedNumber}`
+        : label; // "Okładka" / "Kontakt" — strony bez numeru
     }
   }
 
@@ -1172,7 +1178,10 @@ document.addEventListener("DOMContentLoaded", function() {
     updateFlipbook();
   });
 
-  window.addEventListener('orientationchange', sizeViewport);
+  window.addEventListener('orientationchange', () => {
+    sizeViewport();
+    updateFlipbook();
+  });
 
   btnPrev.addEventListener('click', () => {
     if (currentSpread > 0) {
