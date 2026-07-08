@@ -1039,6 +1039,22 @@ document.addEventListener("DOMContentLoaded", function() {
   const stage = document.querySelector('.fb-stage');
   const viewport = document.querySelector('.fb-view-port');
 
+  // Prawdziwy numer wydrukowany w stopce każdej strony (okładka i strona
+  // kontaktowa go nie mają — to niepodpisane strony spoza numeracji).
+  const pageNumbers = Array.from(pages).map(p => {
+    const numEl = p.querySelector('.pfoot .num');
+    return numEl ? numEl.textContent.trim() : null;
+  });
+  const lastPrintedNumber = pageNumbers.reduce((max, n) => {
+    const v = parseInt(n, 10);
+    return isNaN(v) ? max : Math.max(max, v);
+  }, 0);
+
+  function pageLabel(idx) {
+    if (pageNumbers[idx] !== null) return pageNumbers[idx];
+    return idx === 0 ? 'Okładka' : 'Kontakt';
+  }
+
   let currentSpread = 0; // index of spread/view
   let spreads = [];
 
@@ -1128,17 +1144,18 @@ document.addEventListener("DOMContentLoaded", function() {
     btnPrev.disabled = (currentSpread === 0);
     btnNext.disabled = (currentSpread === spreads.length - 1);
     
-    // Update indicator text
+    // Update indicator text — pokazuje numer wydrukowany w stopce strony,
+    // a nie surowy indeks w DOM, żeby zgadzał się z tym, co widać na stronie.
     if (isDesktop) {
       if (currentSpread === 0) {
-        indicator.textContent = "Strona 1";
+        indicator.textContent = pageLabel(0);
       } else {
-        const p1 = currentPages[0] + 1;
-        const p2 = currentPages[1] ? currentPages[1] + 1 : '';
+        const p1 = pageLabel(currentPages[0]);
+        const p2 = currentPages[1] !== undefined ? pageLabel(currentPages[1]) : null;
         indicator.textContent = p2 ? `Strony ${p1} - ${p2}` : `Strona ${p1}`;
       }
     } else {
-      indicator.textContent = `Strona ${currentPages[0] + 1} z ${pages.length}`;
+      indicator.textContent = `Strona ${pageLabel(currentPages[0])} z ${lastPrintedNumber}`;
     }
   }
 
