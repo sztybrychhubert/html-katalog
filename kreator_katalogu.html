@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRBiG Łęczyca — Kreator stron katalogu</title>
+<style>
+  :root{
+    --navy:#101826;
+    --navy2:#0a1220;
+    --accent:#e07b1a;
+    --accent-light:#f0a659;
+    --ink:#1a2230;
+    --grey:#6b7482;
+    --line:#d8dce2;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%; font-family:'Segoe UI', Roboto, Arial, sans-serif; background:#0a1220;}
+
+  /* ===================== UKŁAD KREATORA ===================== */
+  .app{display:flex; flex-direction:column; height:100vh; height:100dvh;}
+  .topbar{
+    height:56px; flex:0 0 auto; background:var(--navy);
+    border-bottom:1px solid rgba(255,255,255,.1);
+    display:flex; align-items:center; gap:12px; padding:0 18px; color:#fff;
+  }
+  .topbar .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);}
+  .topbar h1{font-size:15px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase;}
+  .topbar .hint{margin-left:auto; font-size:11px; color:#8b93a1;}
+
+  .main{flex:1; display:flex; min-height:0;}
+
+  /* ---- panel formularza ---- */
+  .panel{
+    width:420px; flex:0 0 auto; background:#141c2b; color:#e6eaf1;
+    overflow-y:auto; padding:16px 16px 40px; border-right:1px solid rgba(255,255,255,.08);
+  }
+  .panel h2{
+    font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--accent-light);
+    margin:18px 0 8px; font-weight:800;
+  }
+  .panel h2:first-child{margin-top:0;}
+  .field{margin-bottom:10px;}
+  .field label{display:block; font-size:11px; color:#aab3c2; margin-bottom:3px;}
+  .field input[type=text], .field textarea, .field select{
+    width:100%; background:#0e1522; color:#fff; border:1px solid #2a3448;
+    border-radius:4px; padding:7px 9px; font-size:12.5px; font-family:inherit;
+  }
+  .field textarea{resize:vertical; min-height:56px; line-height:1.45;}
+  .field input:focus, .field textarea:focus, .field select:focus{outline:1.5px solid var(--accent);}
+  .field .sub{font-size:10px; color:#6b7482; margin-top:3px; line-height:1.4;}
+  .row2{display:flex; gap:8px;}
+  .row2 .field{flex:1;}
+  .check{display:flex; align-items:center; gap:7px; font-size:12px; color:#cfd6e2; margin-bottom:10px; cursor:pointer;}
+  .check input{accent-color:var(--accent); width:15px; height:15px;}
+
+  .btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--accent); color:#fff; border:none; border-radius:4px;
+    padding:8px 13px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+  .btn:hover{background:var(--accent-light);}
+  .btn.ghost{background:#232d40; color:#cfd6e2;}
+  .btn.ghost:hover{background:#2d3950;}
+  .btn.small{padding:4px 9px; font-size:11px; font-weight:600;}
+  .btn.danger{background:#3a2330; color:#f0a0a0;}
+  .btn.danger:hover{background:#54293c;}
+
+  .list-editor{border:1px solid #2a3448; border-radius:6px; padding:8px; margin-bottom:10px; background:#101827;}
+  .list-editor .item{display:flex; gap:6px; margin-bottom:6px; align-items:flex-start;}
+  .list-editor .item input, .list-editor .item textarea{
+    flex:1; background:#0e1522; color:#fff; border:1px solid #2a3448; border-radius:4px;
+    padding:6px 8px; font-size:12px; font-family:inherit;
+  }
+  .list-editor .item textarea{min-height:34px; resize:vertical;}
+
+  .tbl-editor{border:1px solid #2a3448; border-radius:6px; padding:8px; margin-bottom:10px; background:#101827; overflow-x:auto;}
+  .tbl-editor table{border-collapse:collapse; font-size:11px; min-width:100%;}
+  .tbl-editor th, .tbl-editor td{padding:2px;}
+  .tbl-editor input{
+    width:86px; background:#0e1522; color:#fff; border:1px solid #2a3448; border-radius:3px;
+    padding:5px 6px; font-size:11px; font-family:inherit;
+  }
+  .tbl-editor input.wide{width:150px;}
+  .tbl-editor input.narrow{width:56px;}
+  .tbl-editor .rowbtns{white-space:nowrap;}
+
+  .export-box{
+    background:#101827; border:1px solid #2a3448; border-radius:6px; padding:12px; margin-top:14px;
+  }
+  .export-box .btns{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;}
+  .export-box .info{font-size:10.5px; color:#8b93a1; line-height:1.5;}
+  .toast{
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    background:var(--accent); color:#fff; font-size:13px; font-weight:700;
+    padding:10px 18px; border-radius:6px; opacity:0; pointer-events:none; transition:opacity .25s;
+    z-index:99;
+  }
+  .toast.show{opacity:1;}
+
+  /* ---- scena podglądu ---- */
+  .stage{
+    flex:1; display:flex; align-items:center; justify-content:center;
+    padding:18px; overflow:hidden; position:relative;
+  }
+  .stage-label{
+    position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#5a6478;
+  }
+  .paper-holder{position:relative;}
+
+  /* ===================== STYLE KARTKI (z katalogu) ===================== */
+  .page{
+    position:relative;
+    width:860px; height:1216px;
+    background:#fff;
+    border-radius:4px;
+    box-shadow:0 12px 36px rgba(0,0,0,.5);
+    overflow:hidden;
+    display:flex; flex-direction:column;
+    color:var(--ink);
+    container-type:inline-size;
+    transform-origin:0 0;
+  }
+  .phead{ padding:3.4% 5% 0; }
+  .phead .brand{
+    display:flex; align-items:center; gap:8px;
+    font-size:clamp(8px,1.2cqw,10.5px);
+    letter-spacing:2px; font-weight:600; text-transform:uppercase;
+    color:#8b93a1;
+  }
+  .phead .brand .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none;}
+  .ptitle{
+    margin-top:1.6%;
+    background:linear-gradient(135deg,var(--navy) 0%,#1b2740 100%);
+    border-left:6px solid var(--accent);
+    color:#fff;
+    padding:1.8% 3%;
+  }
+  .ptitle h2{
+    font-size:clamp(13px,2.5cqw,21px);
+    font-weight:800; letter-spacing:.5px; line-height:1.25;
+  }
+  .ptitle h2 span{ color:var(--accent-light); }
+  .pbody{ flex:1; padding:1.5% 3% 1.5%; display:flex; flex-direction:column; min-height:0; }
+  .intro{
+    font-size:clamp(8px,1.35cqw,11.5px);
+    line-height:1.45; color:#2a3342;
+    margin-bottom:1.2%;
+  }
+  .drawing{
+    text-align:center; margin-bottom:0.8%; flex:1;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  .drawing img{ max-width:100%; max-height:100%; display:inline-block; object-fit:contain; }
+  .uwaga{
+    font-size:clamp(6.5px,1.05cqw,9.5px);
+    color:var(--grey); font-style:italic; text-align:right;
+    margin:0.6% 0 1.4%; line-height:1.4;
+  }
+  .uwaga b{ color:#3a4250; }
+  .page table{
+    width:100%; border-collapse:collapse;
+    font-size:clamp(6.5px,1.08cqw,10.5px); line-height:1.25;
+  }
+  .page th, .page td{
+    border:1px solid #9aa2ae; padding:.45% .3%; text-align:center;
+    font-variant-numeric:tabular-nums;
+  }
+  .page thead th{ background:var(--navy); color:#fff; font-weight:700; }
+  .page thead th.param{ text-align:left; padding-left:1%; }
+  .page td.param{
+    text-align:left; padding-left:1%; font-weight:700; background:#f1f3f6; white-space:nowrap;
+  }
+  .page td.unit{ background:#f1f3f6; font-weight:600; }
+  .page td.merged{ font-weight:600; }
+  .page tbody tr:nth-child(even) td:not(.param):not(.unit){ background:#fafbfc; }
+  .pfoot{
+    background:var(--navy); color:#c6cedb;
+    padding:1.7% 5%;
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:clamp(7.5px,1.2cqw,10.5px);
+  }
+  .pfoot .l{display:flex;align-items:center;gap:8px;}
+  .pfoot .l .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+  .pfoot .num{font-weight:800;color:#fff;font-size:clamp(10px,1.6cqw,14px);}
+  .ph-box{
+    flex:1; border:2px dashed #c3c9d2; border-radius:6px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; color:#9aa2ae;
+    background:linear-gradient(135deg, rgba(224,123,26,0.03) 0%, rgba(16,24,38,0.03) 100%);
+  }
+  .ph-box svg{ width:12%; opacity:.55; }
+  .ph-box .t{ font-size:clamp(10px,1.7cqw,14px); font-weight:700; letter-spacing:1px; text-transform:uppercase; }
+  .ph-box .s{ font-size:clamp(8px,1.3cqw,11px); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <span class="dot"></span>
+    <h1>Kreator stron katalogu — PRBiG Łęczyca</h1>
+    <span class="hint">Wypełnij formularz po lewej — kartka A4 po prawej aktualizuje się na żywo</span>
+  </div>
+  <div class="main">
+    <div class="panel" id="panel">
+
+      <h2>Szablon strony</h2>
+      <div class="field">
+        <select id="f_template">
+          <option value="tabela">Karta produktu z tabelą (jak przesiewacze)</option>
+          <option value="zdjecie">Karta produktu ze zdjęciem i blokami (jak płuczki)</option>
+          <option value="realizacje">Strona REALIZACJE (zdjęcia wdrożeń)</option>
+          <option value="dzialowa">Strona działowa rozdziału (ciemna)</option>
+        </select>
+      </div>
+
+      <h2>Nagłówek strony</h2>
+      <div class="field" data-not="dzialowa">
+        <label>Kategoria w pasku u góry (po „Katalog produktów ·”)</label>
+        <input type="text" id="f_kategoria" placeholder="np. Przesiewacze wibracyjne">
+      </div>
+      <div class="field" data-not="dzialowa">
+        <label>Tytuł strony (biała część)</label>
+        <input type="text" id="f_tytul" placeholder="np. PRZESIEWACZE WIBRACYJNE ELIPTYCZNE">
+      </div>
+      <div class="field" data-not="dzialowa">
+        <label>Typ / dopisek (pomarańczowa część)</label>
+        <input type="text" id="f_typ" placeholder="np. typu PWE - ...mc">
+      </div>
+
+      <div data-only="dzialowa">
+        <div class="row2">
+          <div class="field">
+            <label>Numer rozdziału</label>
+            <input type="text" id="f_rozdzial" placeholder="np. Rozdział IV">
+          </div>
+        </div>
+        <div class="field">
+          <label>Tytuł — linia biała</label>
+          <input type="text" id="f_dz_t1" placeholder="np. PODAJNIKI">
+        </div>
+        <div class="field">
+          <label>Tytuł — linia pomarańczowa</label>
+          <input type="text" id="f_dz_t2" placeholder="np. I ZASILACZE">
+        </div>
+        <div class="field">
+          <label>Zdjęcie tła (delikatnie widoczne pod gradientem)</label>
+          <input type="file" id="f_dz_bg" accept="image/*">
+          <div class="sub">Zdjęcie zostanie osadzone w pliku (base64), krycie 15%.</div>
+        </div>
+      </div>
+
+      <h2>Treść</h2>
+      <div class="field">
+        <label>Tekst wstępu (akapit u góry strony)</label>
+        <textarea id="f_wstep" rows="4" placeholder="Opis produktu / rozdziału..."></textarea>
+      </div>
+
+      <div data-only="tabela zdjecie">
+        <div class="field">
+          <label>Rysunek techniczny / zdjęcie produktu</label>
+          <input type="file" id="f_img" accept="image/*">
+          <div class="sub">Brak pliku = kreskowany placeholder „Miejsce na zdjęcie”.</div>
+        </div>
+        <div class="field">
+          <label>Podpis pod zdjęciem (opcjonalny)</label>
+          <input type="text" id="f_podpis" placeholder="np. Przykład odwadniacza wstęgowego dwufrakcyjnego">
+        </div>
+      </div>
+
+      <div data-only="tabela">
+        <label class="check"><input type="checkbox" id="f_uwaga" checked> Dodaj standardową „UWAGĘ” nad tabelą</label>
+        <h2>Tabela parametrów</h2>
+        <div class="tbl-editor" id="tblEditor"></div>
+        <div style="display:flex; gap:8px; margin-bottom:10px;">
+          <button class="btn small ghost" id="btnAddCol">+ model (kolumna)</button>
+          <button class="btn small ghost" id="btnAddRow">+ parametr (wiersz)</button>
+        </div>
+        <div class="field"><div class="sub">Zaznacz „scal” przy wierszu, aby jedna wartość objęła wszystkie modele (np. „KĄT POCHYLENIA 0–10”).</div></div>
+      </div>
+
+      <div data-only="zdjecie">
+        <h2>Kafelki parametrów (0–4, opcjonalne)</h2>
+        <div class="list-editor" id="tilesEditor"></div>
+        <button class="btn small ghost" id="btnAddTile">+ kafelek</button>
+
+        <h2>Blok „Zastosowanie”</h2>
+        <div class="field">
+          <textarea id="f_zast" rows="4" placeholder="Każda linia = jeden punkt listy"></textarea>
+          <div class="sub">Każda linia tekstu stanie się osobnym punktem „•”. Pusta = blok się nie pokaże.</div>
+        </div>
+        <h2>Blok „Atuty konstrukcji”</h2>
+        <div class="field">
+          <textarea id="f_atuty" rows="4" placeholder="Każda linia = jeden punkt listy"></textarea>
+        </div>
+      </div>
+
+      <div data-only="realizacje">
+        <h2>Zdjęcia realizacji (1–3)</h2>
+        <div class="field"><input type="file" id="f_real1" accept="image/*"></div>
+        <div class="field"><input type="file" id="f_real2" accept="image/*"></div>
+        <div class="field"><input type="file" id="f_real3" accept="image/*"></div>
+        <div class="field">
+          <label>Tekst pod zdjęciami</label>
+          <textarea id="f_realtekst" rows="3" placeholder="Opis zastosowań, referencje..."></textarea>
+        </div>
+      </div>
+
+      <div data-only="dzialowa">
+        <h2>Lista produktów rozdziału</h2>
+        <div class="list-editor" id="dzialItems"></div>
+        <button class="btn small ghost" id="btnAddDzialItem">+ pozycja</button>
+      </div>
+
+      <h2>Stopka</h2>
+      <div class="row2">
+        <div class="field">
+          <label>Numer strony</label>
+          <input type="text" id="f_num" placeholder="np. 25">
+        </div>
+      </div>
+
+      <div class="export-box">
+        <div class="btns">
+          <button class="btn" id="btnCopy">📋 Kopiuj kod strony</button>
+          <button class="btn ghost" id="btnDownload">⬇ Pobierz podgląd HTML</button>
+          <button class="btn danger" id="btnReset">Wyczyść</button>
+        </div>
+        <div class="info">
+          <b>Jak dodać stronę do katalogu:</b> kliknij „Kopiuj kod strony”, otwórz plik
+          katalogu w edytorze tekstu i wklej skopiowany fragment przed stroną kontaktową
+          (ostatni <code>&lt;div class="page"…&gt;</code>). Pamiętaj o kolejnym numerze
+          strony w stopce. Wersja robocza formularza zapisuje się automatycznie w przeglądarce.
+        </div>
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="stage-label">Podgląd — kartka A4 (860 × 1216)</div>
+      <div class="paper-holder" id="holder">
+        <div class="page" id="paper"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ============ STAN ============ */
+  const defaults = {
+    template: 'tabela',
+    kategoria: 'Przesiewacze wibracyjne',
+    tytul: 'PRZESIEWACZE WIBRACYJNE',
+    typ: 'typu ...',
+    wstep: '',
+    img: '', podpis: '',
+    uwaga: true,
+    models: ['Model A', 'Model B', 'Model C'],
+    rows: [
+      { param:'MAKS. WYM. ZIARN NADAWY', unit:'mm', merged:true,  value:'', values:['','',''] },
+      { param:'WYMIARY POKŁADÓW',        unit:'m',  merged:false, value:'', values:['','',''] },
+      { param:'MOC SILNIKÓW',            unit:'kW', merged:false, value:'', values:['','',''] }
+    ],
+    tiles: [],
+    zast: '', atuty: '',
+    real1:'', real2:'', real3:'', realtekst:'',
+    rozdzial:'Rozdział IV', dz_t1:'NOWY', dz_t2:'ROZDZIAŁ', dz_bg:'',
+    dzialItems:[{nazwa:'Produkt 1', opis:'Krótki opis'}],
+    num: ''
+  };
+  let S = load() || JSON.parse(JSON.stringify(defaults));
+
+  function load(){
+    try{ const j = localStorage.getItem('prbig_kreator'); return j ? JSON.parse(j) : null; }
+    catch(e){ return null; }
+  }
+  function save(){
+    try{ localStorage.setItem('prbig_kreator', JSON.stringify(S)); }catch(e){}
+  }
+
+  /* ============ POMOCNICZE ============ */
+  const $ = id => document.getElementById(id);
+  function esc(s){
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function escBr(s){ return esc(s).replace(/\n/g,'<br>'); }
+  function toast(msg){
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2200);
+  }
+  function readImage(file, cb){
+    const r = new FileReader();
+    r.onload = () => {
+      // przeskaluj do maks. 1600 px i zapisz jako webp/jpeg, żeby plik nie puchł
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1600;
+        const sc = Math.min(1, maxW / img.width);
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(img.width * sc);
+        cv.height = Math.round(img.height * sc);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        let out = cv.toDataURL('image/webp', 0.78);
+        if (out.indexOf('data:image/webp') !== 0) out = cv.toDataURL('image/jpeg', 0.8);
+        cb(out);
+      };
+      img.src = r.result;
+    };
+    r.readAsDataURL(file);
+  }
+
+  /* ============ GENEROWANIE HTML KARTKI ============ */
+  const PLACEHOLDER_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M3 17l5-5 4 4 3-3 6 6"/></svg>';
+
+  function phead(){
+    return '  <div class="phead">\n' +
+      '    <div class="brand"><span class="dot"></span> PRBiG Łęczyca — Katalog produktów · ' + esc(S.kategoria) + '</div>\n' +
+      '    <div class="ptitle"><h2>' + esc(S.tytul) + (S.typ ? ' <span>' + esc(S.typ) + '</span>' : '') + '</h2></div>\n' +
+      '  </div>\n';
+  }
+  function pfoot(){
+    const num = esc(S.num || '?');
+    return '  <div style="position:relative; z-index:1; height:4px; background:linear-gradient(90deg, var(--accent), var(--accent-light)); flex:0 0 auto;"></div>\n' +
+      '  <div class="pfoot">\n' +
+      '    <div class="l"><span class="dot"></span> PRBiG Łęczyca Sp. z o.o. · www.prbig.pl</div>\n' +
+      '    <div class="num">' + num + '</div>\n' +
+      '  </div>\n';
+  }
+  function imgOrPlaceholder(src, altText, phText){
+    if (src){
+      return '<div class="drawing" style="flex:1; display:flex; align-items:center; justify-content:center; overflow:hidden;">\n' +
+        '      <img src="' + src + '" alt="' + esc(altText) + '" style="max-width:100%; max-height:100%; object-fit:contain;">\n' +
+        '    </div>';
+    }
+    return '<div class="ph-box" style="flex:1;">\n      ' + PLACEHOLDER_SVG + '\n' +
+      '      <div class="t">Miejsce na zdjęcie</div>\n' +
+      '      <div class="s">' + esc(phText) + ' — do uzupełnienia</div>\n    </div>';
+  }
+  function captionHtml(){
+    if (!S.podpis) return '';
+    return '\n    <p style="flex:0 0 auto; text-align:center; font-size:clamp(7px,1.05cqw,9.5px); color:var(--grey); font-style:italic; margin:0.4% 0 0.6%;">' + esc(S.podpis) + '</p>';
+  }
+  function bulletList(text){
+    return text.split('\n').map(s=>s.trim()).filter(Boolean)
+      .map(s => '        <li style="padding-left:1em; text-indent:-1em;">&bull;&nbsp;' + esc(s) + '</li>')
+      .join('\n');
+  }
+  function blocksHtml(){
+    const z = S.zast.trim(), a = S.atuty.trim();
+    if (!z && !a) return '';
+    let h = '\n    <div style="flex:0 0 auto; display:flex; gap:2.5%;">';
+    if (z){
+      h += '\n      <div style="flex:1.15; background:#f1f3f6; border-left:4px solid var(--accent); padding:1.6% 2.2%;">\n' +
+        '        <div style="font-size:clamp(8px,1.15cqw,10.5px); font-weight:800; letter-spacing:1.5px; color:var(--navy); margin-bottom:1.4%;">ZASTOSOWANIE</div>\n' +
+        '        <ul style="list-style:none; margin:0; padding:0; font-size:clamp(7.5px,1.05cqw,10px); line-height:1.55; color:#2a3342;">\n' +
+        bulletList(z) + '\n        </ul>\n      </div>';
+    }
+    if (a){
+      h += '\n      <div style="flex:1; background:linear-gradient(135deg,var(--navy) 0%,#1b2740 100%); border-left:4px solid var(--accent); padding:1.6% 2.2%; color:#fff;">\n' +
+        '        <div style="font-size:clamp(8px,1.15cqw,10.5px); font-weight:800; letter-spacing:1.5px; color:var(--accent-light); margin-bottom:1.4%;">ATUTY KONSTRUKCJI</div>\n' +
+        '        <ul style="list-style:none; margin:0; padding:0; font-size:clamp(7.5px,1.05cqw,10px); line-height:1.55; color:#cfd6e2;">\n' +
+        bulletList(a) + '\n        </ul>\n      </div>';
+    }
+    return h + '\n    </div>';
+  }
+  function tilesHtml(){
+    const tiles = S.tiles.filter(t => t.val || t.label);
+    if (!tiles.length) return '';
+    let h = '\n    <div style="flex:0 0 auto; display:flex; gap:2%;">';
+    tiles.forEach(t => {
+      h += '\n      <div style="flex:1; background:#f1f3f6; border-top:3px solid var(--accent); padding:1.4% 1.2%; text-align:center;">\n' +
+        '        <div style="font-size:clamp(10px,1.55cqw,15px); font-weight:800; color:var(--navy);">' + esc(t.val) + '</div>\n' +
+        '        <div style="font-size:clamp(6.5px,0.95cqw,9px); color:var(--grey); text-transform:uppercase; letter-spacing:.5px; margin-top:2%;">' + esc(t.label) + '</div>\n' +
+        '      </div>';
+    });
+    return h + '\n    </div>';
+  }
+  function tableHtml(){
+    const n = S.models.length;
+    let h = '    <table>\n      <thead>\n        <tr>\n          <th class="param">PARAMETR</th><th>JEDN.</th>\n          ';
+    h += S.models.map(m => '<th>' + escBr(m) + '</th>').join('');
+    h += '\n        </tr>\n      </thead>\n      <tbody>\n';
+    S.rows.forEach(r => {
+      h += '        <tr><td class="param">' + esc(r.param) + '</td><td class="unit">' + esc(r.unit) + '</td>';
+      if (r.merged){
+        h += '<td colspan="' + n + '" class="merged">' + esc(r.value) + '</td>';
+      } else {
+        for (let i = 0; i < n; i++) h += '<td>' + esc(r.values[i] || '') + '</td>';
+      }
+      h += '</tr>\n';
+    });
+    h += '      </tbody>\n    </table>\n';
+    return h;
+  }
+
+  function renderTabela(){
+    let b = '  <div class="pbody">\n';
+    b += '    <p class="intro">' + escBr(S.wstep) + '</p>\n';
+    b += '    ' + imgOrPlaceholder(S.img, 'Rysunek techniczny', 'Rysunek techniczny lub zdjęcie produktu') + captionHtml() + '\n';
+    if (S.uwaga){
+      b += '    <p class="uwaga"><b>UWAGA:</b> Wymiary podstawowe i charakterystykę techniczną należy przyjmować jako dane informacyjne.<br>W przypadku umieszczenia naszych urządzeń w projektach prosimy zwrócić się o przesłanie rysunku montażowego.</p>\n';
+    }
+    b += tableHtml();
+    b += '  </div>\n';
+    return '<div class="page">\n' + phead() + b + pfoot() + '</div>';
+  }
+
+  function renderZdjecie(){
+    let b = '  <div class="pbody" style="flex:1; display:flex; flex-direction:column; gap:2%; padding:3% 5%;">\n';
+    b += '    <p class="intro">' + escBr(S.wstep) + '</p>\n';
+    b += tilesHtml();
+    b += '\n    ' + imgOrPlaceholder(S.img, esc(S.tytul), 'Fotografia produktu') + captionHtml();
+    b += blocksHtml();
+    b += '\n  </div>\n';
+    return '<div class="page">\n' + phead() + b + pfoot() + '</div>';
+  }
+
+  function renderRealizacje(){
+    const fotos = [S.real1, S.real2, S.real3].filter(Boolean);
+    let b = '  <div class="pbody" style="padding:1.5% 4% 1.5%; display:flex; flex-direction:column; gap:1%;">\n';
+    if (fotos.length){
+      fotos.forEach(f => {
+        b += '    <div style="flex:1; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:4px; background:#f5f6f8;">\n' +
+             '      <img src="' + f + '" alt="Realizacja" style="max-width:100%; max-height:100%; object-fit:contain;">\n    </div>\n';
+      });
+    } else {
+      b += '    <div class="ph-box">\n      ' + PLACEHOLDER_SVG + '\n' +
+           '      <div class="t">Miejsce na zdjęcia</div>\n' +
+           '      <div class="s">Fotografie realizacji — do uzupełnienia</div>\n    </div>\n';
+    }
+    if (S.realtekst.trim()){
+      b += '    <div style="flex:0 0 auto; padding:1.2% 0 0.5%;">\n' +
+           '      <p style="font-size:clamp(8px,1.3cqw,11.5px); line-height:1.5; color:#2a3342;">' + escBr(S.realtekst) + '</p>\n    </div>\n';
+    }
+    b += '  </div>\n';
+    return '<div class="page">\n' + phead() + b + pfoot() + '</div>';
+  }
+
+  function renderDzialowa(){
+    let h = '<div class="page" style="background:linear-gradient(160deg, #0a1220 0%, #101826 40%, #1b2740 100%); color:#fff; display:flex; flex-direction:column; overflow:hidden;">\n';
+    if (S.dz_bg){
+      h += '  <div style="position:absolute; top:0; left:0; right:0; bottom:0;">\n' +
+           '    <img src="' + S.dz_bg + '" style="width:100%; height:100%; object-fit:cover; opacity:0.15;" alt="">\n  </div>\n';
+    }
+    h += '  <div style="position:relative; z-index:1; padding:8% 7% 0; flex:0 0 auto;">\n' +
+         '    <div style="width:50px; height:3px; background:var(--accent); border-radius:2px;"></div>\n' +
+         '    <div style="font-size:clamp(7px, 1cqw, 9px); letter-spacing:3px; text-transform:uppercase; color:#6b7482; margin-top:1.5%; font-weight:600;">' + esc(S.rozdzial) + '</div>\n  </div>\n';
+    h += '  <div style="position:relative; z-index:1; flex:0 0 auto; padding:3% 7% 0;">\n' +
+         '    <h1 style="font-size:clamp(20px, 4cqw, 34px); font-weight:800; letter-spacing:3px; line-height:1.2;">\n' +
+         '      ' + esc(S.dz_t1) + '<br><span style="color:var(--accent);">' + esc(S.dz_t2) + '</span>\n    </h1>\n' +
+         '    <div style="width:60%; height:1px; background:linear-gradient(90deg, rgba(224,123,26,0.6), transparent); margin-top:2.5%;"></div>\n  </div>\n';
+    h += '  <div style="position:relative; z-index:1; flex:1; padding:4% 7%; display:flex; flex-direction:column; justify-content:flex-start; gap:2.2%;">\n' +
+         '    <p style="font-size:clamp(8px, 1.3cqw, 11px); color:#8b93a1; line-height:1.6; max-width:80%;">\n      ' + escBr(S.wstep) + '\n    </p>\n' +
+         '    <div style="margin-top:2%;">\n';
+    const items = S.dzialItems.filter(it => it.nazwa);
+    items.forEach((it, i) => {
+      const border = (i < items.length - 1) ? ' border-bottom:1px solid rgba(255,255,255,0.08);' : '';
+      h += '      <div style="display:flex; align-items:center; gap:10px; padding:1.2% 0;' + border + '">\n' +
+           '        <div style="width:clamp(18px,3cqw,28px); height:clamp(18px,3cqw,28px); background:var(--accent); border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:clamp(8px,1.2cqw,12px); font-weight:800; color:#fff; flex:none;">' + (i+1) + '</div>\n' +
+           '        <div><div style="font-size:clamp(9px,1.4cqw,12px); font-weight:700;">' + esc(it.nazwa) + '</div><div style="font-size:clamp(7px,1cqw,9px); color:#6b7482;">' + esc(it.opis) + '</div></div>\n' +
+           '      </div>\n';
+    });
+    h += '    </div>\n  </div>\n';
+    h += '  <div style="position:relative; z-index:1; height:4px; background:linear-gradient(90deg, var(--accent), var(--accent-light)); flex:0 0 auto;"></div>\n' +
+         '  <div class="pfoot" style="background:transparent; color:#6b7482;">\n' +
+         '    <div class="l"><span class="dot"></span> PRBiG Łęczyca Sp. z o.o. · www.prbig.pl</div>\n' +
+         '    <div class="num">' + esc(S.num || '?') + '</div>\n  </div>\n';
+    return h + '</div>';
+  }
+
+  function pageHtml(){
+    switch (S.template){
+      case 'zdjecie':    return renderZdjecie();
+      case 'realizacje': return renderRealizacje();
+      case 'dzialowa':   return renderDzialowa();
+      default:           return renderTabela();
+    }
+  }
+
+  /* ============ PODGLĄD ============ */
+  const paper = $('paper'), holder = $('holder'), stage = $('stage');
+
+  function renderPreview(){
+    const html = pageHtml();
+    // podmień zawartość, zachowując element .page (style/transform)
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    const p = tmp.firstElementChild;
+    paper.innerHTML = p.innerHTML;
+    paper.setAttribute('style', (p.getAttribute('style') || '') );
+    fitPreview(); // setAttribute skasował transform — przywróć skalowanie
+    save();
+  }
+  function fitPreview(){
+    const availW = stage.clientWidth - 36;
+    const availH = stage.clientHeight - 48;
+    const sc = Math.min(availW / 860, availH / 1216);
+    paper.style.transform = 'scale(' + sc + ')';
+    holder.style.width  = (860 * sc) + 'px';
+    holder.style.height = (1216 * sc) + 'px';
+  }
+  window.addEventListener('resize', fitPreview);
+
+  /* ============ FORMULARZ ============ */
+  function bindText(id, key){
+    $(id).addEventListener('input', () => { S[key] = $(id).value; renderPreview(); });
+  }
+  function setFormFromState(){
+    $('f_template').value = S.template;
+    $('f_kategoria').value = S.kategoria;
+    $('f_tytul').value = S.tytul;
+    $('f_typ').value = S.typ;
+    $('f_wstep').value = S.wstep;
+    $('f_podpis').value = S.podpis;
+    $('f_uwaga').checked = S.uwaga;
+    $('f_zast').value = S.zast;
+    $('f_atuty').value = S.atuty;
+    $('f_realtekst').value = S.realtekst;
+    $('f_rozdzial').value = S.rozdzial;
+    $('f_dz_t1').value = S.dz_t1;
+    $('f_dz_t2').value = S.dz_t2;
+    $('f_num').value = S.num;
+  }
+  function showSections(){
+    document.querySelectorAll('[data-only]').forEach(el => {
+      el.style.display = el.getAttribute('data-only').split(' ').includes(S.template) ? '' : 'none';
+    });
+    document.querySelectorAll('[data-not]').forEach(el => {
+      el.style.display = el.getAttribute('data-not').split(' ').includes(S.template) ? 'none' : '';
+    });
+  }
+
+  /* --- edytor tabeli --- */
+  function renderTblEditor(){
+    const box = $('tblEditor');
+    let h = '<table><tr><th></th><th></th>';
+    S.models.forEach((m, mi) => {
+      h += '<th><input value="' + esc(m) + '" data-model="' + mi + '">' +
+           '<button class="btn small danger" data-delcol="' + mi + '" title="usuń kolumnę">✕</button></th>';
+    });
+    h += '</tr>';
+    S.rows.forEach((r, ri) => {
+      h += '<tr><td><input class="wide" value="' + esc(r.param) + '" data-rp="' + ri + '" placeholder="PARAMETR"></td>' +
+           '<td><input class="narrow" value="' + esc(r.unit) + '" data-ru="' + ri + '" placeholder="jedn."></td>';
+      if (r.merged){
+        h += '<td colspan="' + S.models.length + '"><input style="width:100%" value="' + esc(r.value) + '" data-rv="' + ri + '" placeholder="wspólna wartość"></td>';
+      } else {
+        S.models.forEach((m, mi) => {
+          h += '<td><input value="' + esc(r.values[mi] || '') + '" data-rc="' + ri + ':' + mi + '"></td>';
+        });
+      }
+      h += '<td class="rowbtns"><label class="check" style="margin:0;"><input type="checkbox" data-rm="' + ri + '"' + (r.merged ? ' checked' : '') + '>scal</label></td>' +
+           '<td class="rowbtns"><button class="btn small danger" data-delrow="' + ri + '" title="usuń wiersz">✕</button></td></tr>';
+    });
+    h += '</table>';
+    box.innerHTML = h;
+
+    box.querySelectorAll('[data-model]').forEach(el => el.addEventListener('input', () => {
+      S.models[+el.dataset.model] = el.value; renderPreview();
+    }));
+    box.querySelectorAll('[data-rp]').forEach(el => el.addEventListener('input', () => { S.rows[+el.dataset.rp].param = el.value; renderPreview(); }));
+    box.querySelectorAll('[data-ru]').forEach(el => el.addEventListener('input', () => { S.rows[+el.dataset.ru].unit = el.value; renderPreview(); }));
+    box.querySelectorAll('[data-rv]').forEach(el => el.addEventListener('input', () => { S.rows[+el.dataset.rv].value = el.value; renderPreview(); }));
+    box.querySelectorAll('[data-rc]').forEach(el => el.addEventListener('input', () => {
+      const [ri, mi] = el.dataset.rc.split(':').map(Number); S.rows[ri].values[mi] = el.value; renderPreview();
+    }));
+    box.querySelectorAll('[data-rm]').forEach(el => el.addEventListener('change', () => {
+      S.rows[+el.dataset.rm].merged = el.checked; renderTblEditor(); renderPreview();
+    }));
+    box.querySelectorAll('[data-delcol]').forEach(el => el.addEventListener('click', () => {
+      const i = +el.dataset.delcol;
+      if (S.models.length <= 1) return;
+      S.models.splice(i, 1); S.rows.forEach(r => r.values.splice(i, 1));
+      renderTblEditor(); renderPreview();
+    }));
+    box.querySelectorAll('[data-delrow]').forEach(el => el.addEventListener('click', () => {
+      S.rows.splice(+el.dataset.delrow, 1); renderTblEditor(); renderPreview();
+    }));
+  }
+  $('btnAddCol').addEventListener('click', () => {
+    S.models.push('Model ' + (S.models.length + 1));
+    S.rows.forEach(r => r.values.push(''));
+    renderTblEditor(); renderPreview();
+  });
+  $('btnAddRow').addEventListener('click', () => {
+    S.rows.push({ param:'', unit:'', merged:false, value:'', values:S.models.map(()=>'') });
+    renderTblEditor(); renderPreview();
+  });
+
+  /* --- edytor kafelków --- */
+  function renderTilesEditor(){
+    const box = $('tilesEditor');
+    box.innerHTML = S.tiles.map((t, i) =>
+      '<div class="item">' +
+      '<input placeholder="wartość, np. do 80 mm" value="' + esc(t.val) + '" data-tv="' + i + '">' +
+      '<input placeholder="etykieta, np. granulacja nadawy" value="' + esc(t.label) + '" data-tl="' + i + '">' +
+      '<button class="btn small danger" data-tdel="' + i + '">✕</button></div>'
+    ).join('') || '<div style="font-size:11px;color:#6b7482;">Brak kafelków — dodaj przyciskiem poniżej.</div>';
+    box.querySelectorAll('[data-tv]').forEach(el => el.addEventListener('input', () => { S.tiles[+el.dataset.tv].val = el.value; renderPreview(); }));
+    box.querySelectorAll('[data-tl]').forEach(el => el.addEventListener('input', () => { S.tiles[+el.dataset.tl].label = el.value; renderPreview(); }));
+    box.querySelectorAll('[data-tdel]').forEach(el => el.addEventListener('click', () => { S.tiles.splice(+el.dataset.tdel, 1); renderTilesEditor(); renderPreview(); }));
+  }
+  $('btnAddTile').addEventListener('click', () => {
+    if (S.tiles.length >= 4) { toast('Maksymalnie 4 kafelki'); return; }
+    S.tiles.push({ val:'', label:'' }); renderTilesEditor(); renderPreview();
+  });
+
+  /* --- edytor listy działowej --- */
+  function renderDzialEditor(){
+    const box = $('dzialItems');
+    box.innerHTML = S.dzialItems.map((it, i) =>
+      '<div class="item">' +
+      '<input placeholder="nazwa, np. Podajniki wibracyjne PW" value="' + esc(it.nazwa) + '" data-dn="' + i + '">' +
+      '<input placeholder="krótki opis" value="' + esc(it.opis) + '" data-do="' + i + '">' +
+      '<button class="btn small danger" data-ddel="' + i + '">✕</button></div>'
+    ).join('');
+    box.querySelectorAll('[data-dn]').forEach(el => el.addEventListener('input', () => { S.dzialItems[+el.dataset.dn].nazwa = el.value; renderPreview(); }));
+    box.querySelectorAll('[data-do]').forEach(el => el.addEventListener('input', () => { S.dzialItems[+el.dataset.do].opis = el.value; renderPreview(); }));
+    box.querySelectorAll('[data-ddel]').forEach(el => el.addEventListener('click', () => { S.dzialItems.splice(+el.dataset.ddel, 1); renderDzialEditor(); renderPreview(); }));
+  }
+  $('btnAddDzialItem').addEventListener('click', () => {
+    S.dzialItems.push({ nazwa:'', opis:'' }); renderDzialEditor(); renderPreview();
+  });
+
+  /* --- pola proste --- */
+  bindText('f_kategoria', 'kategoria');
+  bindText('f_tytul', 'tytul');
+  bindText('f_typ', 'typ');
+  bindText('f_wstep', 'wstep');
+  bindText('f_podpis', 'podpis');
+  bindText('f_zast', 'zast');
+  bindText('f_atuty', 'atuty');
+  bindText('f_realtekst', 'realtekst');
+  bindText('f_rozdzial', 'rozdzial');
+  bindText('f_dz_t1', 'dz_t1');
+  bindText('f_dz_t2', 'dz_t2');
+  bindText('f_num', 'num');
+  $('f_uwaga').addEventListener('change', () => { S.uwaga = $('f_uwaga').checked; renderPreview(); });
+  $('f_template').addEventListener('change', () => { S.template = $('f_template').value; showSections(); renderPreview(); });
+
+  function bindFile(id, key){
+    $(id).addEventListener('change', () => {
+      const f = $(id).files[0];
+      if (!f) { S[key] = ''; renderPreview(); return; }
+      readImage(f, dataUrl => { S[key] = dataUrl; renderPreview(); toast('Zdjęcie wczytane i skompresowane'); });
+    });
+  }
+  bindFile('f_img', 'img');
+  bindFile('f_dz_bg', 'dz_bg');
+  bindFile('f_real1', 'real1');
+  bindFile('f_real2', 'real2');
+  bindFile('f_real3', 'real3');
+
+  /* ============ EKSPORT ============ */
+  $('btnCopy').addEventListener('click', () => {
+    const code = pageHtml();
+    navigator.clipboard.writeText(code).then(
+      () => toast('Kod strony skopiowany do schowka'),
+      () => {
+        // awaryjnie: zaznaczalne okno
+        const w = window.open('', '_blank');
+        w.document.write('<pre>' + code.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</pre>');
+        toast('Schowek niedostępny — kod otwarty w nowej karcie');
+      }
+    );
+  });
+
+  $('btnDownload').addEventListener('click', () => {
+    const css = document.querySelector('style').textContent;
+    const doc = '<!DOCTYPE html>\n<html lang="pl">\n<head>\n<meta charset="UTF-8">\n' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+      '<title>' + esc(S.tytul || 'Strona katalogu') + '</title>\n<style>\n' + css +
+      '\n  html,body{background:#333; display:flex; align-items:flex-start; justify-content:center; padding:20px;}\n' +
+      '  @media print{ html,body{background:#fff; padding:0;} .page{box-shadow:none; width:210mm; height:297mm; border-radius:0;} }\n' +
+      '</style>\n</head>\n<body>\n' + pageHtml() + '\n</body>\n</html>';
+    const blob = new Blob([doc], { type:'text/html;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'strona_katalogu.html';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Pobrano podgląd strony');
+  });
+
+  $('btnReset').addEventListener('click', () => {
+    if (!confirm('Wyczyścić cały formularz? Wgrane zdjęcia i teksty zostaną usunięte.')) return;
+    S = JSON.parse(JSON.stringify(defaults));
+    localStorage.removeItem('prbig_kreator');
+    setFormFromState(); showSections(); renderTblEditor(); renderTilesEditor(); renderDzialEditor(); renderPreview();
+  });
+
+  /* ============ START ============ */
+  setFormFromState();
+  showSections();
+  renderTblEditor();
+  renderTilesEditor();
+  renderDzialEditor();
+  renderPreview();
+  fitPreview();
+})();
+</script>
+</body>
+</html>
