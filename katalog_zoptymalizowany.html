@@ -138,6 +138,10 @@
   .toc{list-style:none;}
   .toc li{display:flex;align-items:center;gap:14px;padding:1.75% 0;border-bottom:1px solid var(--line);}
   .toc li:last-child{border-bottom:none;}
+  .toc li[data-jump]{cursor:pointer;}
+  .toc li[data-jump]:hover .t{color:var(--accent) !important;}
+  .toc li[data-jump]:hover .pno{color:var(--accent) !important;}
+  .toc li[data-jump]:hover .idx{background:var(--accent) !important;}
   .idx{flex:none;width:2.4em;height:2.4em;display:flex;align-items:center;justify-content:center;background:var(--navy);color:#fff;font-weight:700;font-size:clamp(10px,1.7cqw,14px);border-left:3px solid var(--accent);}
   .item{flex:1;min-width:0;}
   .item .t{font-size:clamp(12px,2.1cqw,17px);font-weight:700;letter-spacing:.3px;}
@@ -1473,6 +1477,28 @@ document.addEventListener('touchstart', e => {
   document.addEventListener('keydown', e => {
     if (e.key === "ArrowRight") { if (currentSpread < spreads.length - 1) btnNext.click(); }
     if (e.key === "ArrowLeft") { if (currentSpread > 0) btnPrev.click(); }
+  });
+
+  // Klikalny spis treści — kliknięcie pozycji przeskakuje do strony,
+  // której numer widnieje w kolumnie spisu (numer = fizyczna pozycja kartki).
+  // Pozycje bez stron (myślnik) pozostają nieaktywne.
+  function goToSheet(n) {
+    const idx = Math.min(Math.max(n - 1, 0), pages.length - 1);
+    const s = spreads.findIndex(sp => sp.includes(idx));
+    if (s !== -1) {
+      currentSpread = s;
+      updateFlipbook();
+    }
+  }
+
+  document.querySelectorAll('.toc li').forEach(li => {
+    const pno = li.querySelector('.pno');
+    if (!pno) return;
+    const n = parseInt(pno.textContent, 10);
+    if (isNaN(n)) return;
+    li.setAttribute('data-jump', n);
+    li.setAttribute('title', 'Przejdź do strony ' + n);
+    li.addEventListener('click', () => goToSheet(n));
   });
 
   // Initial setup
