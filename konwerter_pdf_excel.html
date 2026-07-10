@@ -226,13 +226,14 @@
       setOcrStatus('Rozpoznawanie tekstu… 0%');
       const { data } = await ocrWorker.recognize(canvas);
       const items = (data.words || [])
-        .filter(w => w.text && w.text.trim() !== '')
+        .map(w => ({ ...w, clean: (w.text || '').replace(/[|¦]+/g, ' ').trim() }))
+        .filter(w => w.clean !== '')
         .map(w => ({
           x: w.bbox.x0,
           y: -w.bbox.y0,                 // oś Y w dół → odwracamy jak w PDF
           w: w.bbox.x1 - w.bbox.x0,
           h: Math.max(4, w.bbox.y1 - w.bbox.y0),
-          str: w.text
+          str: w.clean
         }));
       pd.items = items;
       pd.hasText = items.length > 0;
@@ -333,7 +334,7 @@
       let c = null;
       for (const it of r){
         const avgChar = it.str.length ? Math.max(2, it.w / it.str.length) : 4;
-        if (c && (it.x - c.endX) < Math.max(4, avgChar * 0.9)){
+        if (c && (it.x - c.endX) < Math.max(3.5, avgChar * 0.7)){
           c.text += (it.x - c.endX > avgChar * 0.25 ? ' ' : '') + it.str;
           c.endX = it.x + it.w;
         } else {
@@ -345,31 +346,72 @@
     });
   }
 
-  /* Wyrównuje komórki wszystkich wierszy do wspólnych kolumn (klastrowanie startX). */
+  /* Wyrównuje komórki wszystkich wierszy do wspólnych kolumn.
+     Kolumny wyznaczają pionowe "przerwy" — zakresy X, których nie zajmuje
+     żadna zwykła komórka (tytuły na całą szerokość są pomijane). Dzięki temu
+     wartości wyśrodkowane i wyrównane do prawej trafiają we właściwe kolumny. */
   function rowsToGrid(rows){
-    const starts = [];
-    rows.forEach(r => r.forEach(c => starts.push(c.startX)));
-    if (!starts.length) return [];
-    starts.sort((a, b) => a - b);
-    const cols = [starts[0]];
-    for (const x of starts){
-      if (x - cols[cols.length - 1] > 14) cols.push(x);
+    const all = [];
+    rows.forEach(r => r.forEach(c => all.push(c)));
+    if (!all.length) return [];
+    let minX = Infinity, maxX = -Infinity;
+    all.forEach(c => { if (c.startX < minX) minX = c.startX; if (c.endX > maxX) maxX = c.endX; });
+    const span = Math.max(1, maxX - minX);
+
+    // kolumny wyznaczają wiersze "tabelowe" (najwięcej komórek) — akapity
+    // i tytuły nad tabelą nie mogą zasłaniać przerw między kolumnami
+    const maxCells = Math.max.apply(null, rows.map(r => r.length));
+    let tableRows;
+    if (maxCells >= 3)      tableRows = rows.filter(r => r.length >= 3);
+    else if (maxCells === 2) tableRows = rows.filter(r => r.length === 2);
+    else                     tableRows = rows;
+    const pool = [];
+    tableRows.forEach(r => r.forEach(c => pool.push(c)));
+
+    // komórki bardzo szerokie (scalone nagłówki) też nie definiują kolumn
+    const normal = pool.filter(c => (c.endX - c.startX) < span * 0.6);
+    const base = normal.length ? normal : (pool.length ? pool : all);
+
+    // zdarzenia pokrycia osi X -> przerwy o zerowym pokryciu
+    const evts = [];
+    base.forEach(c => { evts.push([c.startX, 1]); evts.push([c.endX, -1]); });
+    evts.sort((a, b) => a[0] - b[0] || b[1] - a[1]);
+    const minGap = Math.max(3, span * 0.008);
+    const gaps = [];
+    let cov = 0, gapStart = null;
+    for (const [x, d] of evts){
+      const prev = cov;
+      cov += d;
+      if (prev > 0 && cov === 0){
+        gapStart = x;
+      } else if (prev === 0 && cov > 0 && gapStart !== null){
+        if (x - gapStart >= minGap) gaps.push([gapStart, x]);
+        gapStart = null;
+      }
     }
+
+    // granice kolumn = środki przerw
+    const bounds = [minX - 1];
+    gaps.forEach(g => bounds.push((g[0] + g[1]) / 2));
+    bounds.push(maxX + 1);
+    const nCols = bounds.length - 1;
+
     const grid = rows.map(r => {
-      const line = new Array(cols.length).fill('');
+      const line = new Array(nCols).fill('');
       for (const c of r){
-        let best = 0, bd = Infinity;
-        for (let i = 0; i < cols.length; i++){
-          const d = Math.abs(c.startX - cols[i]);
-          if (d < bd){ bd = d; best = i; }
+        const cx = (c.startX + c.endX) / 2;
+        let col = nCols - 1;
+        for (let i = 0; i < nCols; i++){
+          if (cx >= bounds[i] && cx < bounds[i + 1]){ col = i; break; }
         }
-        line[best] = line[best] ? line[best] + ' ' + c.text : c.text;
+        line[col] = line[col] ? line[col] + ' ' + c.text : c.text;
       }
       return line;
     });
+
     // usuń całkiem puste kolumny
     const used = [];
-    for (let i = 0; i < cols.length; i++){
+    for (let i = 0; i < nCols; i++){
       if (grid.some(l => l[i] !== '')) used.push(i);
     }
     return grid.map(l => used.map(i => l[i]));
